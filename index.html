@@ -143,29 +143,39 @@
       }
     }
 
-    // 发送聊天消息到 DeepAI 生成聊天内容
+    <script>
+    const chatContainer = document.getElementById('chatContainer');
+    const chatInput = document.getElementById('chatInput');
+    const chatSendButton = document.getElementById('chatSendButton');
+
+    const OPENAI_API_KEY = 'sk-svcacct-CJ447E6feVx7S9Bqe4wnI7QtLuNjEdc_cNnB-OWKSD5fQ50T_rOQ7g0ZvJZlsT3BlbkFJfAs_FnR6vTtjYhwKRaj5Ps2kaQM86iNkkkFcXFscqbCsYhnSVJusqiacFMYAA'; 
     async function sendChatMessage(message) {
-      // 用户消息显示
       displayChatBubble(message, 'user');
+      
       try {
-        const response = await fetch('https://api.deepai.org/api/text-generator', {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Api-Key': 'sk-svcacct-CJ447E6feVx7S9Bqe4wnI7QtLuNjEdc_cNnB-OWKSD5fQ50T_rOQ7g0ZvJZlsT3BlbkFJfAs_FnR6vTtjYhwKRaj5Ps2kaQM86iNkkkFcXFscqbCsYhnSVJusqiacFMYAA', // 替换为您的 DeepAI API 密钥
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            text: message,
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'You are a helpful assistant.' },
+              { role: 'user', content: message },
+            ],
           }),
         });
 
         const data = await response.json();
-        const botResponse = data.output || '抱歉，发生了错误。';
+        const botResponse = data.choices[0].message.content || '抱歉，发生了错误。';
 
-        // 显示Bot回复
+        // 显示 ChatGPT 回复
         displayChatBubble(botResponse, 'bot');
       } catch (err) {
-        displayChatBubble('发生错误，无法生成聊天内容', 'bot');
+        displayChatBubble('发生错误，无法生成回复。', 'bot');
+        console.error(err);
       }
     }
 
@@ -182,13 +192,6 @@
       chatContainer.appendChild(bubble);
       chatContainer.scrollTop = chatContainer.scrollHeight; // 滚动到底部
     }
-
-    // 生成艺术作品
-    async function payAndGenerate() {
-      if (!walletAddress) {
-        statusDiv.textContent = '请先连接钱包！';
-        return;
-      }
 
       const recipientAddress = 'YOUR_RECEIVER_SOL_ADDRESS';
       const tokenMintAddress = 'YOUR_SPL_TOKEN_MINT_ADDRESS';
