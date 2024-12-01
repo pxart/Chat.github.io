@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana支付与聊天生成艺术作品</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      color: #00ffcc;
+      font-family: 'Arial', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 480px;
+      background: rgba(10, 10, 10, 0.9);
+      border: 1px solid #00ffcc;
+      border-radius: 10px;
+      box-shadow: 0 0 20px #00ffcc;
+      padding: 20px;
+      text-align: center;
+    }
+
+    button {
+      padding: 10px 15px;
+      margin-top: 10px;
+      border: 1px solid #00ffcc;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #00ccff, #ff00ff);
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: linear-gradient(90deg, #ff00ff, #00ccff);
+    }
+
+    a {
+      color: #00ccff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .chat-container {
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: scroll;
+      text-align: left;
+    }
+
+    .chat-bubble {
+      margin: 5px;
+      padding: 10px;
+      background: #333;
+      border-radius: 5px;
+      color: #fff;
+      max-width: 80%;
+    }
+
+    .user-bubble {
+      background: #00ccff;
+      align-self: flex-end;
+    }
+
+    .bot-bubble {
+      background: #ff00ff;
+      align-self: flex-start;
+    }
+
+    #chatInput {
+      width: 80%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #00ffcc;
+      border-radius: 5px;
+      background: #222;
+      color: #fff;
+    }
+
+    #chatSendButton {
+      padding: 10px 15px;
+      margin-top: 10px;
+      background: #ff00ff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Solana支付与聊天生成艺术作品</h1>
+    <!-- 连接钱包按钮 -->
+    <button id="connectWallet">连接钱包</button>
+    <!-- 支付并生成按钮 -->
+    <button id="payToken" disabled>支付并生成</button>
+    <!-- 状态显示 -->
+    <div id="status"></div>
+
+    <!-- 聊天功能部分 -->
+    <div class="chat-container" id="chatContainer"></div>
+    <input type="text" id="chatInput" placeholder="请输入消息..." />
+    <button id="chatSendButton">发送消息</button>
+  </div>
+
+  <!-- 引入 Solana Web3.js 库 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/@solana/web3.js/1.41.0/solanaWeb3.min.js"></script>
+  <script>
+    // 获取HTML元素
+    const connectWalletButton = document.getElementById('connectWallet');
+    const payTokenButton = document.getElementById('payToken');
+    const statusDiv = document.getElementById('status');
+    const chatContainer = document.getElementById('chatContainer');
+    const chatInput = document.getElementById('chatInput');
+    const chatSendButton = document.getElementById('chatSendButton');
+    let walletAddress = null; // 保存钱包地址
+
+    // 连接Phantom钱包
+    async function connectWallet() {
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const response = await window.solana.connect();
+          walletAddress = response.publicKey.toString();
+          statusDiv.textContent = `已连接: ${walletAddress}`;
+          payTokenButton.disabled = false;
+        } catch (err) {
+          statusDiv.textContent = '连接失败: ' + err.message;
+        }
+      } else {
+        statusDiv.textContent = '请安装 Phantom 钱包！';
+      }
+    }
+
+    // 发送聊天消息到 DeepAI 生成聊天内容
+    async function sendChatMessage(message) {
+      // 用户消息显示
+      displayChatBubble(message, 'user');
+      try {
+        const response = await fetch('https://api.deepai.org/api/text-generator', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Api-Key': 'YOUR_DEEPAI_API_KEY', // 替换为您的 DeepAI API 密钥
+          },
+          body: JSON.stringify({
+            text: message,
+          }),
+        });
+
+        const data = await response.json();
+        const botResponse = data.output || '抱歉，发生了错误。';
+
+        // 显示Bot回复
+        displayChatBubble(botResponse, 'bot');
+      } catch (err) {
+        displayChatBubble('发生错误，无法生成聊天内容', 'bot');
+      }
+    }
+
+    // 显示聊天气泡
+    function displayChatBubble(message, sender) {
+      const bubble = document.createElement('div');
+      bubble.classList.add('chat-bubble');
+      if (sender === 'user') {
+        bubble.classList.add('user-bubble');
+      } else {
+        bubble.classList.add('bot-bubble');
+      }
+      bubble.textContent = message;
+      chatContainer.appendChild(bubble);
+      chatContainer.scrollTop = chatContainer.scrollHeight; // 滚动到底部
+    }
+
+    // 生成艺术作品
+    async function payAndGenerate() {
+      if (!walletAddress) {
+        statusDiv.textContent = '请先连接钱包！';
+        return;
+      }
+
+      const recipientAddress = 'YOUR_RECEIVER_SOL_ADDRESS';
+      const tokenMintAddress = 'YOUR_SPL_TOKEN_MINT_ADDRESS';
+      const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('devnet'));
+      const payer = window.solana;
+
+      try {
+        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+          new solanaWeb3.PublicKey(walletAddress),
+          { mint: new solanaWeb3.PublicKey(tokenMintAddress) }
+        );
+
+        if (tokenAccounts.value.length === 0) {
+          statusDiv.textContent = '您的账户没有足够的代币！';
+          return;
+        }
+
+        const transaction = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: new solanaWeb3.PublicKey(walletAddress),
+            toPubkey: new solanaWeb3.PublicKey(recipientAddress),
+            lamports: solanaWeb3.LAMPORTS_PER_SOL * 0.01,
+          })
+        );
+
+        const signature = await payer.signAndSendTransaction(transaction);
+        await connection.confirmTransaction(signature);
+        statusDiv.textContent = '支付成功！正在生成内容...';
+
+        const response = await fetch('https://api.deepai.org/api/text2img', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Api-Key': 'YOUR_DEEPAI_API_KEY',
+          },
+          body: JSON.stringify({
+            text: '生成艺术作品的描述文本',
+          }),
+        });
+
+        const data = await response.json();
+        if (data.output_url) {
+          statusDiv.innerHTML = `内容生成成功！<br><a href="${data.output_url}" target="_blank">点击查看艺术作品</a>`;
+        } else {
+          statusDiv.textContent = '生成失败，请重试！';
+        }
+      } catch (err) {
+        statusDiv.textContent = '支付或生成内容失败: ' + err.message;
+      }
+    }
+
+    // 按钮事件绑定
+    connectWalletButton.addEventListener('click', connectWallet); 
+    payTokenButton.addEventListener('click', payAndGenerate);
+    chatSendButton.addEventListener('click', () => {
+      const message = chatInput.value.trim();
+      if (message) {
+        sendChatMessage(message);
+        chatInput.value = '';
+      }
+    });
+  </script>
+</body>
+</html>
